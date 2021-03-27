@@ -131,7 +131,7 @@ int main(int argc, char const *argv[])
             {
                 if (i == server_socket_fd)
                 {
-                    printf("This is server.c\n There is a new connection to accept\n");
+                    printf("There is a new connection request from a client...");
 
                     int client_socket = accept_new_connection(server_socket_fd);
 
