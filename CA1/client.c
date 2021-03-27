@@ -13,6 +13,8 @@ void error(const char *msg)
     exit(0);
 }
 
+#define STDIN 0
+
 int main(int argc, char *argv[])
 {
     int sockfd, port, n;
@@ -47,17 +49,51 @@ int main(int argc, char *argv[])
 
     printf("I am connected to the server now\n");
 
-    bzero(buffer,256);
-    n = read(sockfd, buffer, 255); //read projects lists
-    if (n < 0)
+    fd_set current_sockets, ready_sockets;
+    FD_ZERO(&current_sockets);
+    FD_SET(sockfd, &current_sockets); //socket for connection with server
+    FD_SET(STDIN, &current_sockets);  //standard input 
+
+    while (1)
     {
-        error("ERROR for client in reading buffer from server\n");
-        exit(EXIT_FAILURE);
+        ready_sockets = current_sockets;
+
+        if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0)
+        {
+            perror("ERROR on select");
+            exit(EXIT_FAILURE);
+        }
+
+        for (int i = 0 ; i < FD_SETSIZE ; i++)
+        {
+            if (FD_ISSET(i, &ready_sockets)) //i is a fd with data that we can read
+            {
+                if (i == sockfd) //server has written something for this client
+                {
+                    bzero(buffer,256);
+                    n = read(sockfd, buffer, 255); //read projects lists (guaranteed that server has written projects lists for this client)
+                    if (n < 0)
+                    {
+                        error("ERROR for client in reading buffer from server\n");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    printf("Message from Server: %s\n", buffer);
+                    if (buffer[0] == 'A') //List of projects given
+                    {
+
+                    }
+                }
+            }
+            if (FD_ISSET(STDIN, &ready_sockets))
+            {
+                bzero(buffer, 255);
+                fgets(buffer, 255, stdin);
+                printf("Input from user is %s\n", buffer);
+            }
+        }
     }
 
-    printf("Server: Available Projects Are: %s\n", buffer);
-
-    
     close(sockfd);
     return 0;
 }

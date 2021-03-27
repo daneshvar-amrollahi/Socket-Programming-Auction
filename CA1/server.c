@@ -40,11 +40,12 @@ int buf_idx; //index for buffer
 
 void add_num_to_buffer(int num)
 {
+    
     if (num == 0)
     {
-        buffer[0] = '0';
-        buffer[1] = ',';
-        buf_idx = 2;
+        buffer[19] = '0';
+        buffer[20] = ',';
+        buf_idx = 21;
         return;
     }
     char d[5];
@@ -59,26 +60,38 @@ void add_num_to_buffer(int num)
         buffer[buf_idx++] = d[idx]; 
     
     buffer[buf_idx++] = ',';
+    
 }
 
 void write_projects_for_client(int client_fd)
 {
-    buf_idx = 0;
+    buf_idx = 19;
+    bzero(buffer, 255);
+    strcat(buffer, "Available Projects:");
     for (int i = 0 ; i < NUM_PROJECTS ; i++)
     {
         if (!project_done[i])
             add_num_to_buffer(i);
     }
     buffer[buf_idx - 1] = '\n';
-    printf("buffer is:\n");
-    for (int i = 0 ; i< buf_idx ; i++)
-        printf("%c", buffer[i]);
     int n = write(client_fd, buffer, strlen(buffer));
     if (n < 0)
     {
         perror("ERROR writing to client socket");
         exit(EXIT_FAILURE);
     }
+}
+
+void handle_connection(int sockfd)
+{
+    bzero(buffer,255);
+    int n = read(sockfd,buffer,255);
+    if (n < 0)
+    {
+        perror("ERROR reading\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("read from %d: %s", sockfd, buffer);
 }
 
 int main(int argc, char const *argv[])
@@ -131,7 +144,7 @@ int main(int argc, char const *argv[])
             {
                 if (i == server_socket_fd)
                 {
-                    printf("There is a new connection request from a client...");
+                    printf("There is a new connection request from a client...\n");
 
                     int client_socket = accept_new_connection(server_socket_fd);
 
@@ -144,8 +157,10 @@ int main(int argc, char const *argv[])
                 else
                 {
                     printf("This is server.c\n There seems to be a message from a client\n");
-                    //handle_connection(i);
-                    FD_CLR(i, &current_sockets);
+                    //1. Client has chosen a project
+                    //2. Client has announced their result in their group
+                    handle_connection(i);
+                    //FD_CLR(i, &current_sockets);
                 }
             }
         }
