@@ -42,7 +42,9 @@ int main(int argc, char *argv[])
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
 
-    printf("This ic client.c I think I am connected to the server now\n");
+    printf("This ic client.c\n I think I am connected to the server now\n");
+
+    
 
     close(sockfd);
     return 0;
