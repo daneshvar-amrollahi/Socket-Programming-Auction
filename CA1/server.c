@@ -35,7 +35,7 @@ int accept_new_connection(int server_socket)
 int client_fd[50]; //client_fd[i]: i'th client fd
 int client_count = 0; //number of clients
 char buffer[255];
-bool project_done[NUM_PROJECTS];
+int project_volunteers[10];
 int buf_idx; //index for buffer
 
 void add_num_to_buffer(int num)
@@ -68,9 +68,9 @@ void write_projects_for_client(int client_fd)
     buf_idx = 19;
     bzero(buffer, 255);
     strcat(buffer, "Available Projects:");
-    for (int i = 0 ; i < NUM_PROJECTS ; i++)
+    for (int i = 0 ; i < 10 ; i++)
     {
-        if (!project_done[i])
+        if (project_volunteers[i] < 5) //project is available for offering
             add_num_to_buffer(i);
     }
     buffer[buf_idx - 1] = '\n';
@@ -82,16 +82,51 @@ void write_projects_for_client(int client_fd)
     }
 }
 
-void handle_connection(int sockfd)
+
+void assign_project_to_client(int clientfd, char project_num)
 {
-    bzero(buffer,255);
-    int n = read(sockfd,buffer,255);
+    project_volunteers[project_num - '0']++;
+    bzero(buffer, 255);
+
+    strcat(buffer, "Please connect to port ");
+    char port_num[5] = {'8', '0', '0', project_num, '\0'};
+    strcat(buffer, port_num);
+
+    strcat(buffer, ". You are person number ");
+    char turn[2] = {project_volunteers[project_num - '0'] + '0', '\0'};
+    strcat(buffer, turn);
+    strcat(buffer, " in the queue for this project when offering prices.\n\0");
+
+    printf("created buffer is: %s\n", buffer);
+
+    printf("writing to %d\n", clientfd);
+
+    int n = write(clientfd, buffer, strlen(buffer));
+    printf("writing done\n");
     if (n < 0)
     {
-        perror("ERROR reading\n");
+        error("ERROR on wiring message to client from server\n");
         exit(EXIT_FAILURE);
     }
-    printf("read from %d: %s", sockfd, buffer);
+}
+
+
+
+void handle_connection(int clientfd)
+{
+    bzero(buffer,255);
+    int n = read(clientfd, buffer, 255);
+    if (n < 0)
+    {
+        perror("ERROR reading from client\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Message read from client %d: %s\n\n", clientfd, buffer);
+    if (buffer[0] == 'V') //volunteered
+    {
+        char project_num = buffer[2];
+        assign_project_to_client(clientfd, project_num);
+    }
 }
 
 int main(int argc, char const *argv[])
@@ -151,12 +186,11 @@ int main(int argc, char const *argv[])
                     client_fd[client_count++] = client_socket;
                     FD_SET(client_socket, &current_sockets);
                     printf("New connection accepted with fd %d\n", client_socket);
-                    printf("Total No. of Clients til now %d\n", client_count); 
+                    printf("Total No. of Clients til now %d\n\n", client_count); 
                     write_projects_for_client(client_socket);
                 }
                 else
                 {
-                    printf("This is server.c\n There seems to be a message from a client\n");
                     //1. Client has chosen a project
                     //2. Client has announced their result in their group
                     handle_connection(i);
