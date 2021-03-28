@@ -51,28 +51,27 @@ int main(int argc, char *argv[])
     printf("I am connected to the server now\n");
 
     fd_set current_sockets, ready_sockets;
-    FD_ZERO(&current_sockets);
-    FD_SET(sockfd, &current_sockets); //socket for connection with server
-    FD_SET(STDIN, &current_sockets);  //standard input 
 
     printf("sockfd is %d\n", sockfd);
 
     while (1)
     {
-        ready_sockets = current_sockets;
+        FD_ZERO(&current_sockets);
+        FD_SET(sockfd, &current_sockets); //socket for connection with server
+        FD_SET(STDIN, &current_sockets);  //standard input 
 
-        if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0)
+        if (select(sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0)
         {
             perror("ERROR on select");
             exit(EXIT_FAILURE);
         }
 
-        for (int i = 0 ; i < FD_SETSIZE ; i++)
-        {
-            if (FD_ISSET(i, &ready_sockets)) //i is a fd with data that we can read
+        // for (int i = 0 ; i < sockfd + 1; i++)
+        // {
+            if (FD_ISSET(sockfd, &current_sockets)) 
             {
-                printf("event here on %d\n", i);
-                if (i == sockfd) //server has written something for this client
+                printf("event here on %d\n", sockfd);
+                if (sockfd == sockfd) //server has written something for this client
                 {
                     bzero(buffer, 255);
                     int n = read(sockfd, buffer, 255); //read message from server: 1. projects list 2. new port and turn
@@ -85,7 +84,8 @@ int main(int argc, char *argv[])
                     printf("Message from Server: %s\n", buffer);
                 }
             }
-            if (FD_ISSET(STDIN, &ready_sockets))
+
+            if (FD_ISSET(STDIN, &current_sockets))
             {
                 bzero(buffer, 255);
                 fgets(buffer, 255, stdin);
@@ -98,9 +98,7 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
             }
-        }
-        FD_SET(sockfd, &current_sockets); //socket for connection with server
-        FD_SET(STDIN, &current_sockets);  //standard input 
+
     }
 
     close(sockfd);

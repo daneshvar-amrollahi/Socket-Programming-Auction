@@ -112,10 +112,12 @@ void assign_project_to_client(int clientfd, char project_num)
 
 
 
-void handle_connection(int clientfd)
+int handle_connection(int clientfd)
 {
     bzero(buffer,255);
     int n = read(clientfd, buffer, 255);
+    if (n == 0) //EOF
+        return 0;
     if (n < 0)
     {
         perror("ERROR reading from client\n");
@@ -127,6 +129,8 @@ void handle_connection(int clientfd)
         char project_num = buffer[2];
         assign_project_to_client(clientfd, project_num);
     }
+
+    return 1;
 }
 
 int main(int argc, char const *argv[])
@@ -167,7 +171,7 @@ int main(int argc, char const *argv[])
     {
         ready_sockets = current_sockets;
 
-        if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0)
+    	if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0)
         {
             perror("ERROR on select");
             exit(EXIT_FAILURE);
@@ -191,9 +195,12 @@ int main(int argc, char const *argv[])
                 }
                 else
                 {
+
                     //1. Client has chosen a project
                     //2. Client has announced their result in their group
-                    handle_connection(i);
+                    int n = handle_connection(i);
+                    if (n == 0) //EOF event happened
+                        FD_CLR(i, &current_sockets);
                     //FD_CLR(i, &current_sockets);
                 }
             }
