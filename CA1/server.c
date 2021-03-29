@@ -32,10 +32,7 @@ int accept_new_connection(int server_socket)
     clilen = sizeof(cli_addr);
     int newsockfd = accept(server_socket, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0) 
-    {
         error("ERROR on accept");
-        exit(EXIT_FAILURE);
-    }
     return newsockfd;
 }
 
@@ -83,10 +80,7 @@ void write_projects_for_client(int client_fd)
     buffer[buf_idx - 1] = '\n';
     int n = write(client_fd, buffer, strlen(buffer));
     if (n < 0)
-    {
-        perror("ERROR writing to client socket");
-        exit(EXIT_FAILURE);
-    }
+        error("ERROR writing to client socket");
 }
 
 void handle_group(int project_num)
@@ -124,10 +118,8 @@ int assign_project_to_client(int clientfd, char project_num)
     int n = write(clientfd, buffer, strlen(buffer));
     printf("writing done\n");
     if (n < 0)
-    {
         error("ERROR on wiring message to client from server\n");
-        exit(EXIT_FAILURE);
-    }
+
 	if (project_volunteers[project_num - '0'] == 5) //group is full
 	{
 		handle_group(project_num - '0');
@@ -143,10 +135,8 @@ int handle_connection(int clientfd)
     if (n == 0) //EOF
         return 0;
     if (n < 0)
-    {
-        perror("ERROR reading from client\n");
-        exit(EXIT_FAILURE);
-    }
+        error("ERROR reading from client\n");
+
     printf("MESSAGE FROM CLIENT: %d: %s\n\n", clientfd, buffer);
     if (buffer[0] == 'V') //volunteered
     {
@@ -196,10 +186,7 @@ int main(int argc, char const *argv[])
         ready_sockets = current_sockets;
 
     	if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0)
-        {
-            perror("ERROR on select");
-            exit(EXIT_FAILURE);
-        }
+            error("ERROR on select");
 
         for (int i = 0 ; i < FD_SETSIZE ; i++)
         {

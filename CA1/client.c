@@ -45,10 +45,8 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(port);
     
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-    {
         error("ERROR connecting");
-        exit(EXIT_FAILURE);
-    }
+
 
     printf("I am connected to the server now\n");
 
@@ -64,10 +62,8 @@ int main(int argc, char *argv[])
         FD_SET(STDIN, &current_sockets);  //standard input 
 
         if (select(sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0)
-        {
             perror("ERROR on select");
-            exit(EXIT_FAILURE);
-        }
+        
 
         
         if (FD_ISSET(sockfd, &current_sockets)) 
@@ -77,10 +73,8 @@ int main(int argc, char *argv[])
                 bzero(buffer, 255);
                 int n = read(sockfd, buffer, 255); //read message from server
                 if (n < 0)
-                {
                     error("ERROR for client in reading buffer from server\n");
-                    exit(EXIT_FAILURE);
-                }
+                
 
                 printf("MESSAGE FROM SERVER: %s\n", buffer);
 
@@ -92,15 +86,11 @@ int main(int argc, char *argv[])
 
                     udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
                     if (udp_sockfd < 0)
-                    {
                         error("ERROR opening socket\n");
-                        exit(EXIT_FAILURE);
-                    }
+                     
                     if (setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
-                    {
                         error("setsockopt(SO_REUSEADDR) failed");
-                        exit(EXIT_FAILURE);
-                    }
+                     
 
                     struct sockaddr_in bc; //bc: broadcasting
                     bc.sin_family = AF_INET;
@@ -131,10 +121,7 @@ int main(int argc, char *argv[])
             //V X: Volunteered for project X
             int n = write(sockfd, buffer, strlen(buffer));
             if (n < 0)
-            {
                 error("ERROR writing volunteered project\n");
-                exit(EXIT_FAILURE);
-            }
         }
 
     }
