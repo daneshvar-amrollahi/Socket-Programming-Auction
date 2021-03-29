@@ -11,6 +11,13 @@
 #define EXIT_SUCCESS 0
 #define NUM_PROJECTS 10
 
+struct group
+{
+	int memberfd[5];
+};
+struct group waiting_list[10];
+
+
 void error(const char *msg)
 {
     perror(msg);
@@ -82,9 +89,22 @@ void write_projects_for_client(int client_fd)
     }
 }
 
-
-void assign_project_to_client(int clientfd, char project_num)
+void handle_group(int project_num)
 {
+	for (int i = 0 ; i < 5 ; i++)
+	{
+		int cur_fd = waiting_list[project_num].memberfd[i];
+		
+		bzero(buffer, 255);
+		strcat(buffer, "The auction will begin now. Go go go!");
+		write(cur_fd, buffer, strlen(buffer));
+	}
+    
+}
+
+int assign_project_to_client(int clientfd, char project_num)
+{
+	waiting_list[project_num - '0'].memberfd[project_volunteers[project_num - '0']] = clientfd;
     project_volunteers[project_num - '0']++;
     bzero(buffer, 255);
 
@@ -97,9 +117,9 @@ void assign_project_to_client(int clientfd, char project_num)
     strcat(buffer, turn);
     strcat(buffer, " in the queue for this project when offering prices.\n\0");
 
-    printf("created buffer is: %s\n", buffer);
+    //printf("created buffer is: %s\n", buffer);
 
-    printf("writing to %d\n", clientfd);
+    //printf("writing to %d\n", clientfd);
 
     int n = write(clientfd, buffer, strlen(buffer));
     printf("writing done\n");
@@ -108,7 +128,11 @@ void assign_project_to_client(int clientfd, char project_num)
         error("ERROR on wiring message to client from server\n");
         exit(EXIT_FAILURE);
     }
-}
+	if (project_volunteers[project_num - '0'] == 5) //group is full
+	{
+		handle_group(project_num - '0');
+	}
+ }
 
 
 
@@ -123,7 +147,7 @@ int handle_connection(int clientfd)
         perror("ERROR reading from client\n");
         exit(EXIT_FAILURE);
     }
-    printf("Message read from client %d: %s\n\n", clientfd, buffer);
+    printf("MESSAGE FROM CLIENT: %d: %s\n\n", clientfd, buffer);
     if (buffer[0] == 'V') //volunteered
     {
         char project_num = buffer[2];
@@ -159,7 +183,7 @@ int main(int argc, char const *argv[])
 
     if (bind(server_socket_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
         error("ERROR on binding");
-    listen(server_socket_fd,5);
+    listen(server_socket_fd,30);
 
 
 
@@ -196,7 +220,7 @@ int main(int argc, char const *argv[])
                 else
                 {
 
-                    //1. Client has chosen a project
+                    //1. Client has FD_CLR(i, &current_sockets);chosen a project
                     //2. Client has announced their result in their group
                     int n = handle_connection(i);
                     if (n == 0) //EOF event happened
