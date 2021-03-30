@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <signal.h>
 
 #define STDIN 0
 
@@ -15,6 +16,12 @@ void error(const char *msg)
     exit(0);
 }
 
+int turn_cnt = 0;
+void sig_handler(int signum)
+{ 
+    printf("Person number %d in queue has 10 seconds to offer his/her price...\n", ++turn_cnt);
+    alarm(10);
+}
 
 
 int main(int argc, char *argv[])
@@ -54,6 +61,8 @@ int main(int argc, char *argv[])
 
     int udp_port, udp_sockfd;
 
+    struct sockaddr_in bc_adr; //bc_adr: broadcasting
+
 
     while (1)
     {
@@ -76,7 +85,7 @@ int main(int argc, char *argv[])
                     error("ERROR for client in reading buffer from server\n");
                 
 
-                printf("MESSAGE FROM SERVER: %s\n", buffer);
+                printf("MESSAGE FROM SERVER: %s\n\n", buffer);
 
                 if (buffer[0] == 'P') //Please connect to port ....
                 {
@@ -87,24 +96,25 @@ int main(int argc, char *argv[])
                     udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
                     if (udp_sockfd < 0)
                         error("ERROR opening socket\n");
-                     
-                    if (setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
-                        error("setsockopt(SO_REUSEADDR) failed");
+                    
+                    int broadcast = 1, opt = 1;
+                    setsockopt(udp_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)); //set broadcasting
+                    setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
                      
 
-                    struct sockaddr_in bc; //bc: broadcasting
-                    bc.sin_family = AF_INET;
-                    bc.sin_addr.s_addr = INADDR_ANY;
-                    bc.sin_port = htons(udp_port);
+                    
+                    bc_adr.sin_family = AF_INET;
+                    bc_adr.sin_addr.s_addr = INADDR_ANY;
+                    bc_adr.sin_port = htons(udp_port);
 
-                    if (bind(udp_sockfd, (struct sockaddr *) &bc, sizeof(bc)) < 0) 
+                    if (bind(udp_sockfd, (struct sockaddr *) &bc_adr, sizeof(bc_adr)) < 0) 
                         error("ERROR on binding");
 
 
-                    printf("I am connected to the UDP Socket now\n");
+                    printf("I am connected to the UDP Socket now\n\n");
                 }
 
-                if (buffer[0] =='B') //Be ready!
+                if (buffer[0] =='T') //The auction will begin now!
                 {
                     FD_CLR(sockfd, &current_sockets);
                     FD_CLR(STDIN, &current_sockets);
@@ -128,8 +138,81 @@ int main(int argc, char *argv[])
 
 
     //Currently connected to the UDP socket
-    printf("outside while\n");
 
+
+    signal(SIGALRM, sig_handler); //Register signal handler
+    printf("Auction beginning...\n");
+    alarm(1);
+    int mx = -1, ans;
+
+
+    while (1)
+    {
+        
+        FD_ZERO(&current_sockets);
+        FD_SET(udp_sockfd, &current_sockets);
+        FD_SET(STDIN, &current_sockets);  //standard input 
+
+        if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > 1)) //max_fd is udp_sockfd
+            perror("ERROR on select");
+        
+
+        if (FD_ISSET(STDIN, &current_sockets)) 
+        {
+            bzero(buffer, 255);
+            fgets(buffer, 255, stdin);
+
+            if (buffer[0] >= '0' && buffer[0] <='9') //someone offered a price
+            {
+                int price = atoi(buffer);
+
+                if (price > mx)
+                {
+                    mx = price;
+                    ans = turn_cnt;
+                }
+
+                bzero(buffer, 255);
+                strcat(buffer, "Person with turn ");
+                char c[2] = {turn_cnt + '0', '\0'};
+                strcat(buffer, c);
+                strcat(buffer, " offered price ");
+                
+                char d[10]; //digits of price
+                int sz = 0;
+                while (price)
+                {
+                    d[sz++] = '0' + (price % 10);
+                    price /= 10; 
+                }         
+                char rd[10];
+                for (int i = sz - 1 ; i >= 0 ; i--)
+                    rd[sz - 1 - i] = d[i];
+                rd[sz] = '\0';
+            
+                strcat(buffer, rd);
+
+                printf("created buffer is: %s\n",buffer);
+
+                write(udp_sockfd, buffer, strlen(buffer));
+                
+                sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr, sizeof(bc_adr));
+
+            }
+            
+        }
+
+        if (FD_ISSET(udp_sockfd, &current_sockets)) //something broadcasted on udp_sockfd
+        {
+            printf("hellllllllo\n");
+            bzero(buffer, 255);
+            int n = recv(udp_sockfd, buffer, 255, 0);
+            if (n < 0)
+                error("ERROR on reading broadcasted message\n");
+            printf("BROADCASTED MESSAGE: %s\n", buffer);
+        }
+    }
+    
     
     return 0;
 }

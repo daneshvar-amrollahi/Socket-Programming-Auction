@@ -111,12 +111,8 @@ int assign_project_to_client(int clientfd, char project_num)
     strcat(buffer, turn);
     strcat(buffer, " in the queue for this project when offering prices.\n\0");
 
-    //printf("created buffer is: %s\n", buffer);
-
-    //printf("writing to %d\n", clientfd);
-
+    
     int n = write(clientfd, buffer, strlen(buffer));
-    printf("writing done\n");
     if (n < 0)
         error("ERROR on wiring message to client from server\n");
 
