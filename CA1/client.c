@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <signal.h>
+#include <time.h>
 
 #define STDIN 0
 
@@ -150,7 +151,7 @@ int main(int argc, char *argv[])
     printf("Auction beginning...\n");
     //alarm(1);
     int mx = -1, ans;
-
+    time_t start = (unsigned long)time(NULL);
     while (1)
     {
         
@@ -178,7 +179,7 @@ int main(int argc, char *argv[])
 
             bzero(buffer, 255);
             strcat(buffer, "Person with turn ");
-            char c[2] = {turn_cnt + '0', '\0'};
+            char c[2] = {turn_cnt + '0' + 1, '\0'};
             strcat(buffer, c);
             strcat(buffer, " offered price ");
             
@@ -210,6 +211,41 @@ int main(int argc, char *argv[])
             if (n < 0)
                 error("ERROR on reading broadcasted message\n");
             printf("BROADCASTED MESSAGE: %s\n", buffer);
+
+
+            int offered_price = 0;
+            printf("salammm\n");
+            int idx = 254;
+            while (1)
+            {
+                if (buffer[idx] == 'e')
+                    break;
+                idx--;
+            }
+
+            for (int j = idx + 2 ; buffer[j] >= '0' && buffer[j] <= '9' ; j++)
+                offered_price = offered_price * 10 + (buffer[j] - '0');
+
+            printf("offered price is %d\n", offered_price);
+
+            int offered_id;
+            idx = 254;
+            while (1)
+            {
+                if (buffer[idx] == 'n')
+                    break;
+                idx--;
+            }
+            offered_id = buffer[idx + 2] - '0';
+
+            printf("offered id is %d\n", offered_id);
+
+            if (offered_price > mx)
+            {
+                mx = offered_price;
+                ans = offered_id;
+            }
+
             fflush(stdout);
         }
 
