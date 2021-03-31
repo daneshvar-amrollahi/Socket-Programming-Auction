@@ -19,6 +19,8 @@ void error(const char *msg)
 int turn_cnt = 0;
 void sig_handler(int signum)
 { 
+    if (turn_cnt != 0)
+        printf("Time is up!\n");
     printf("Person number %d in queue has 10 seconds to offer his/her price...\n", ++turn_cnt);
     alarm(10);
 }
@@ -61,7 +63,6 @@ int main(int argc, char *argv[])
 
     int udp_port, udp_sockfd;
 
-    struct sockaddr_in bc_adr; //bc_adr: broadcasting
 
 
     while (1)
@@ -92,26 +93,6 @@ int main(int argc, char *argv[])
                     printf("Connecting to UDP Socket...\n");
                     char port_numm[4] = {'8', '0', '0', buffer[26]};
                     udp_port = atoi(port_numm);
-
-                    udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-                    if (udp_sockfd < 0)
-                        error("ERROR opening socket\n");
-                    
-                    int broadcast = 1, opt = 1;
-                    setsockopt(udp_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)); //set broadcasting
-                    setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-                     
-
-                    
-                    bc_adr.sin_family = AF_INET;
-                    bc_adr.sin_addr.s_addr = INADDR_ANY;
-                    bc_adr.sin_port = htons(udp_port);
-
-                    if (bind(udp_sockfd, (struct sockaddr *) &bc_adr, sizeof(bc_adr)) < 0) 
-                        error("ERROR on binding");
-
-
-                    printf("I am connected to the UDP Socket now\n\n");
                 }
 
                 if (buffer[0] =='T') //The auction will begin now!
@@ -136,7 +117,30 @@ int main(int argc, char *argv[])
 
     }
 
+    udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (udp_sockfd < 0)
+        error("ERROR opening socket\n");
+    
+    int broadcast_en = 1, opt_en = 1;
+    setsockopt(udp_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast_en, sizeof(broadcast_en)); 
+    setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEPORT, &opt_en, sizeof(opt_en));
+    
+    struct sockaddr_in bc_adr_sendto, bc_adr_recvfrom;
 
+    bc_adr_recvfrom.sin_family = AF_INET;
+    bc_adr_recvfrom.sin_addr.s_addr = htonl(INADDR_ANY); //INADDR_ANY 
+    bc_adr_recvfrom.sin_port = htons(udp_port);
+
+    bc_adr_sendto.sin_family = AF_INET;
+    bc_adr_sendto.sin_addr.s_addr = htonl(INADDR_BROADCAST); 
+    bc_adr_sendto.sin_port = htons(udp_port);
+
+    
+    if (bind(udp_sockfd, (struct sockaddr *) &bc_adr_recvfrom, sizeof(bc_adr_recvfrom)) < 0) 
+        error("ERROR on binding");
+    
+
+    printf("I am connected to the UDP Socket now\n\n");
     //Currently connected to the UDP socket
 
 
@@ -145,7 +149,6 @@ int main(int argc, char *argv[])
     alarm(1);
     int mx = -1, ans;
 
-
     while (1)
     {
         
@@ -153,66 +156,123 @@ int main(int argc, char *argv[])
         FD_SET(udp_sockfd, &current_sockets);
         FD_SET(STDIN, &current_sockets);  //standard input 
 
-        if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > 1)) //max_fd is udp_sockfd
-            perror("ERROR on select");
-        
+        if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > 5)) //max_fd is udp_sockfd
+            error("ERROR on select");
 
+        
         if (FD_ISSET(STDIN, &current_sockets)) 
         {
             bzero(buffer, 255);
             fgets(buffer, 255, stdin);
 
-            if (buffer[0] >= '0' && buffer[0] <='9') //someone offered a price
-            {
-                int price = atoi(buffer);
-
-                if (price > mx)
-                {
-                    mx = price;
-                    ans = turn_cnt;
-                }
-
-                bzero(buffer, 255);
-                strcat(buffer, "Person with turn ");
-                char c[2] = {turn_cnt + '0', '\0'};
-                strcat(buffer, c);
-                strcat(buffer, " offered price ");
-                
-                char d[10]; //digits of price
-                int sz = 0;
-                while (price)
-                {
-                    d[sz++] = '0' + (price % 10);
-                    price /= 10; 
-                }         
-                char rd[10];
-                for (int i = sz - 1 ; i >= 0 ; i--)
-                    rd[sz - 1 - i] = d[i];
-                rd[sz] = '\0';
             
-                strcat(buffer, rd);
+            int price = atoi(buffer);
 
-                printf("created buffer is: %s\n",buffer);
-
-                write(udp_sockfd, buffer, strlen(buffer));
-                
-                sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr, sizeof(bc_adr));
-
+            if (price > mx)
+            {
+                mx = price;
+                ans = turn_cnt;
             }
+
+            bzero(buffer, 255);
+            strcat(buffer, "Person with turn ");
+            char c[2] = {turn_cnt + '0', '\0'};
+            strcat(buffer, c);
+            strcat(buffer, " offered price ");
+            
+            char d[10]; //digits of price
+            int sz = 0;
+            while (price)
+            {
+                d[sz++] = '0' + (price % 10);
+                price /= 10; 
+            }         
+            char rd[10];
+            for (int i = sz - 1 ; i >= 0 ; i--)
+                rd[sz - 1 - i] = d[i];
+            rd[sz] = '\n';
+            rd[sz + 1] = '\0';
+        
+            strcat(buffer, rd);
+            
+            sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr_sendto, sizeof(struct sockaddr_in));   
             
         }
 
         if (FD_ISSET(udp_sockfd, &current_sockets)) //something broadcasted on udp_sockfd
         {
-            printf("hellllllllo\n");
+            printf("event on udp_sock\n");
             bzero(buffer, 255);
-            int n = recv(udp_sockfd, buffer, 255, 0);
+            socklen_t bc_adr_len = sizeof(bc_adr_recvfrom);
+            int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr_recvfrom, &bc_adr_len);
             if (n < 0)
                 error("ERROR on reading broadcasted message\n");
             printf("BROADCASTED MESSAGE: %s\n", buffer);
+            fflush(stdout);
         }
+
+        if (turn_cnt == 5)
+            break;
     }
     
+    printf("The winner is user %d with price offer %d\n", ans, mx);
+    return 0;
     
+   /*
+    for (int i = 0 ; i < 5 ; i++)
+    {
+        if (i + 1 == turn_cnt)
+        {
+            bzero(buffer, 255);
+            printf("before gets\n");
+            fgets(buffer, 255, stdin);
+            printf("after gets\n");
+            //if (buffer[0] >= '0' && buffer[0] <='9') //someone offered a price
+            //{
+            int price = atoi(buffer);
+
+            if (price > mx)
+            {
+                mx = price;
+                ans = turn_cnt;
+            }
+
+            bzero(buffer, 255);
+            strcat(buffer, "Person with turn ");
+            char c[2] = {turn_cnt + '0', '\0'};
+            strcat(buffer, c);
+            strcat(buffer, " offered price ");
+            
+            char d[10]; //digits of price
+            int sz = 0;
+            while (price)
+            {
+                d[sz++] = '0' + (price % 10);
+                price /= 10; 
+            }         
+            char rd[10];
+            for (int i = sz - 1 ; i >= 0 ; i--)
+                rd[sz - 1 - i] = d[i];
+            rd[sz] = '\n';
+            rd[sz + 1] = '\0';
+        
+            strcat(buffer, rd);
+            
+            printf("broadcasting %s\n", buffer);
+            sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr, sizeof(struct sockaddr_in));
+        }
+
+        printf("after if\n");
+        bzero(buffer, 255);
+        socklen_t bc_adr_len = sizeof(bc_adr);
+        int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr, &bc_adr_len);
+        if (n < 0)
+            error("ERROR on reading broadcasted message\n");
+        printf("BROADCASTED MESSAGE: %s\n", buffer);
+
+    }
+    printf("salan\n");
+    */
+    printf("The winner is user %d with price offer %d\n", ans, mx);
     return 0;
 }
