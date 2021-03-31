@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
     //signal(SIGALRM, sig_handler); //Register signal handler
     printf("Auction beginning...\n");
     //alarm(1);
-    int mx = -1, ans;
+    int mn = 2e9, ans;
     time_t start = (unsigned long)time(NULL);
     while (1)
     {
@@ -171,107 +171,9 @@ int main(int argc, char *argv[])
             
             int price = atoi(buffer);
 
-            if (price > mx)
+            if (price < mn)
             {
-                mx = price;
-                ans = turn_cnt;
-            }
-
-            bzero(buffer, 255);
-            strcat(buffer, "Person with turn ");
-            char c[2] = {turn_cnt + '0' + 1, '\0'};
-            strcat(buffer, c);
-            strcat(buffer, " offered price ");
-            
-            char d[10]; //digits of price
-            int sz = 0;
-            while (price)
-            {
-                d[sz++] = '0' + (price % 10);
-                price /= 10; 
-            }         
-            char rd[10];
-            for (int i = sz - 1 ; i >= 0 ; i--)
-                rd[sz - 1 - i] = d[i];
-            rd[sz] = '\n';
-            rd[sz + 1] = '\0';
-        
-            strcat(buffer, rd);
-            
-            sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr_sendto, sizeof(struct sockaddr_in));   
-            
-        }
-
-        if (FD_ISSET(udp_sockfd, &current_sockets)) //something broadcasted on udp_sockfd
-        {
-            turn_cnt++;
-            bzero(buffer, 255);
-            socklen_t bc_adr_len = sizeof(bc_adr_recvfrom);
-            int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr_recvfrom, &bc_adr_len);
-            if (n < 0)
-                error("ERROR on reading broadcasted message\n");
-            printf("BROADCASTED MESSAGE: %s\n", buffer);
-
-
-            int offered_price = 0;
-            printf("salammm\n");
-            int idx = 254;
-            while (1)
-            {
-                if (buffer[idx] == 'e')
-                    break;
-                idx--;
-            }
-
-            for (int j = idx + 2 ; buffer[j] >= '0' && buffer[j] <= '9' ; j++)
-                offered_price = offered_price * 10 + (buffer[j] - '0');
-
-            printf("offered price is %d\n", offered_price);
-
-            int offered_id;
-            idx = 254;
-            while (1)
-            {
-                if (buffer[idx] == 'n')
-                    break;
-                idx--;
-            }
-            offered_id = buffer[idx + 2] - '0';
-
-            printf("offered id is %d\n", offered_id);
-
-            if (offered_price > mx)
-            {
-                mx = offered_price;
-                ans = offered_id;
-            }
-
-            fflush(stdout);
-        }
-
-        if (turn_cnt == USERS_FOR_PROJECT)
-            break;
-    }
-    
-    printf("The winner is user %d with price offer %d\n", ans, mx);
-    return 0;
-    
-   /*
-    for (int i = 0 ; i < 5 ; i++)
-    {
-        if (i + 1 == turn_cnt)
-        {
-            bzero(buffer, 255);
-            printf("before gets\n");
-            fgets(buffer, 255, stdin);
-            printf("after gets\n");
-            //if (buffer[0] >= '0' && buffer[0] <='9') //someone offered a price
-            //{
-            int price = atoi(buffer);
-
-            if (price > mx)
-            {
-                mx = price;
+                mn = price;
                 ans = turn_cnt;
             }
 
@@ -296,21 +198,63 @@ int main(int argc, char *argv[])
         
             strcat(buffer, rd);
             
-            printf("broadcasting %s\n", buffer);
-            sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr, sizeof(struct sockaddr_in));
+            sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr_sendto, sizeof(struct sockaddr_in));   
+
+            
+            
         }
 
-        printf("after if\n");
-        bzero(buffer, 255);
-        socklen_t bc_adr_len = sizeof(bc_adr);
-        int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr, &bc_adr_len);
-        if (n < 0)
-            error("ERROR on reading broadcasted message\n");
-        printf("BROADCASTED MESSAGE: %s\n", buffer);
+        if (FD_ISSET(udp_sockfd, &current_sockets)) //something broadcasted on udp_sockfd
+        {
+            turn_cnt++;
+            bzero(buffer, 255);
+            socklen_t bc_adr_len = sizeof(bc_adr_recvfrom);
+            int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr_recvfrom, &bc_adr_len);
+            if (n < 0)
+                error("ERROR on reading broadcasted message\n");
+            printf("BROADCASTED MESSAGE: %s\n", buffer);
 
+
+            int offered_price = 0;
+            //printf("salammm\n");
+            int idx = 254;
+            while (1)
+            {
+                if (buffer[idx] == 'e')
+                    break;
+                idx--;
+            }
+
+            for (int j = idx + 2 ; buffer[j] >= '0' && buffer[j] <= '9' ; j++)
+                offered_price = offered_price * 10 + (buffer[j] - '0');
+
+            //printf("offered price is %d\n", offered_price);
+
+            int offered_id;
+            idx = 254;
+            while (1)
+            {
+                if (buffer[idx] == 'n')
+                    break;
+                idx--;
+            }
+            offered_id = buffer[idx + 2] - '0';
+
+            //printf("offered id is %d\n", offered_id);
+
+            if (offered_price < mn)
+            {
+                mn = offered_price;
+                ans = offered_id;
+            }
+
+            fflush(stdout);
+        }
+
+        if (turn_cnt == USERS_FOR_PROJECT)
+            break;
     }
-    printf("salan\n");
-    */
-    printf("The winner is user %d with price offer %d\n", ans, mx);
+    
+    printf("The minimum price offer is %d\n", mn);
     return 0;
 }
