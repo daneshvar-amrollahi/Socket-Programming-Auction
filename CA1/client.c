@@ -16,13 +16,15 @@ void error(const char *msg)
     exit(0);
 }
 
+#define USERS_FOR_PROJECT 3
+
 int turn_cnt = 0;
 void sig_handler(int signum)
 { 
     if (turn_cnt != 0)
         printf("Time is up!\n");
     printf("Person number %d in queue has 10 seconds to offer his/her price...\n", ++turn_cnt);
-    alarm(10);
+    //alarm(10);
 }
 
 
@@ -144,9 +146,9 @@ int main(int argc, char *argv[])
     //Currently connected to the UDP socket
 
 
-    signal(SIGALRM, sig_handler); //Register signal handler
+    //signal(SIGALRM, sig_handler); //Register signal handler
     printf("Auction beginning...\n");
-    alarm(1);
+    //alarm(1);
     int mx = -1, ans;
 
     while (1)
@@ -201,7 +203,7 @@ int main(int argc, char *argv[])
 
         if (FD_ISSET(udp_sockfd, &current_sockets)) //something broadcasted on udp_sockfd
         {
-            printf("event on udp_sock\n");
+            turn_cnt++;
             bzero(buffer, 255);
             socklen_t bc_adr_len = sizeof(bc_adr_recvfrom);
             int n = recvfrom(udp_sockfd, buffer, 255, 0, (struct sockaddr *)&bc_adr_recvfrom, &bc_adr_len);
@@ -211,7 +213,7 @@ int main(int argc, char *argv[])
             fflush(stdout);
         }
 
-        if (turn_cnt == 5)
+        if (turn_cnt == USERS_FOR_PROJECT)
             break;
     }
     
