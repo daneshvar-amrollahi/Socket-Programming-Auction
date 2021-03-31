@@ -11,9 +11,11 @@
 #define EXIT_SUCCESS 0
 #define NUM_PROJECTS 10
 
+#define USERS_FOR_PROJECT 3
+
 struct group
 {
-	int memberfd[5];
+	int memberfd[USERS_FOR_PROJECT];
 };
 struct group waiting_list[10];
 
@@ -74,7 +76,7 @@ void write_projects_for_client(int client_fd)
     strcat(buffer, "Available Projects:");
     for (int i = 0 ; i < 10 ; i++)
     {
-        if (project_volunteers[i] < 5) //project is available for offering
+        if (project_volunteers[i] < USERS_FOR_PROJECT) //project is available for offering
             add_num_to_buffer(i);
     }
     buffer[buf_idx - 1] = '\n';
@@ -85,7 +87,7 @@ void write_projects_for_client(int client_fd)
 
 void handle_group(int project_num)
 {
-	for (int i = 0 ; i < 5 ; i++)
+	for (int i = 0 ; i < USERS_FOR_PROJECT ; i++)
 	{
 		int cur_fd = waiting_list[project_num].memberfd[i];
 		
@@ -116,7 +118,7 @@ int assign_project_to_client(int clientfd, char project_num)
     if (n < 0)
         error("ERROR on wiring message to client from server\n");
 
-	if (project_volunteers[project_num - '0'] == 5) //group is full
+	if (project_volunteers[project_num - '0'] == USERS_FOR_PROJECT) //group is full
 	{
 		handle_group(project_num - '0');
 	}
