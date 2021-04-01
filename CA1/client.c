@@ -8,6 +8,7 @@
 #include <netdb.h> 
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
 
 #define STDIN 0
 
@@ -20,11 +21,14 @@ void error(const char *msg)
 #define USERS_FOR_PROJECT 3
 
 int turn_cnt = 0;
+volatile sig_atomic_t time_is_up = 0;
 void sig_handler(int signum)
 { 
-    if (turn_cnt != 0)
-        printf("Time is up!\n");
-    printf("Person number %d in queue has 10 seconds to offer his/her price...\n", ++turn_cnt);
+    time_is_up = 1;
+    //turn_cnt++;
+    //if (turn_cnt != 0)
+    //    printf("Time is up!\n");
+    //printf("Person number %d in queue has 10 seconds to offer his/her price...\n", ++turn_cnt);
     //alarm(10);
 }
 
@@ -102,7 +106,7 @@ int main(int argc, char *argv[])
                 {
                     FD_CLR(sockfd, &current_sockets);
                     FD_CLR(STDIN, &current_sockets);
-                    close(sockfd);
+                    //close(sockfd);
                     break;
                 }
             }
@@ -147,20 +151,39 @@ int main(int argc, char *argv[])
     //Currently connected to the UDP socket
 
 
-    //signal(SIGALRM, sig_handler); //Register signal handler
+    signal(SIGALRM, sig_handler); //Register signal handler
     printf("Auction beginning...\n");
-    //alarm(1);
+    alarm(10);
     int mn = 2e9, ans;
-    time_t start = (unsigned long)time(NULL);
+    int my_offered_price = 0;
     while (1)
     {
-        
+        signal(SIGALRM, sig_handler); //Register signal handler
         FD_ZERO(&current_sockets);
         FD_SET(udp_sockfd, &current_sockets);
         FD_SET(STDIN, &current_sockets);  //standard input 
 
-        if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > 5)) //max_fd is udp_sockfd
-            error("ERROR on select");
+        int res = select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL);
+
+        if (res == -1)
+        {
+            if (errno == EINTR)
+            {
+                printf("Time is up\n");
+                time_is_up = 0;
+                turn_cnt++;
+                alarm(10);
+                continue;
+            }
+            else
+            {   
+                error("ERROR select\n");
+            }
+        }   
+        
+
+        //if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > USERS_FOR_PROJECT)) //max_fd is udp_sockfd
+         //   error("ERROR on select");
 
         
         if (FD_ISSET(STDIN, &current_sockets)) 
@@ -170,6 +193,8 @@ int main(int argc, char *argv[])
 
             
             int price = atoi(buffer);
+
+            my_offered_price = price;
 
             if (price < mn)
             {
@@ -198,6 +223,8 @@ int main(int argc, char *argv[])
         
             strcat(buffer, rd);
             
+            
+
             sendto(udp_sockfd, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_adr_sendto, sizeof(struct sockaddr_in));   
 
             
@@ -250,11 +277,37 @@ int main(int argc, char *argv[])
 
             fflush(stdout);
         }
+        
+        alarm(10);
 
         if (turn_cnt == USERS_FOR_PROJECT)
             break;
     }
     
     printf("The minimum price offer is %d\n", mn);
+
+    if (mn == my_offered_price) //I am the winner
+    {
+        bzero(buffer, 255);
+        strcat(buffer, "I am the winner! My offered price is ");
+
+        int price = mn;
+        char d[10]; //digits of price
+        int sz = 0;
+        while (price)
+        {
+            d[sz++] = '0' + (price % 10);
+            price /= 10; 
+        }         
+        char rd[10];
+        for (int i = sz - 1 ; i >= 0 ; i--)
+            rd[sz - 1 - i] = d[i];
+        rd[sz] = '\n';
+        rd[sz + 1] = '\0';
+    
+        strcat(buffer, rd);
+        
+        write(sockfd, buffer, strlen(buffer));
+    }
     return 0;
 }
