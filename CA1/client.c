@@ -128,9 +128,10 @@ int main(int argc, char *argv[])
     if (udp_sockfd < 0)
         error("ERROR opening socket\n");
     
-    int broadcast_en = 1, opt_en = 1;
+    int broadcast_en = 1, opt_en = 1, reuse_adr_en = 1;
     setsockopt(udp_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast_en, sizeof(broadcast_en)); 
     setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEPORT, &opt_en, sizeof(opt_en));
+    setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse_adr_en, sizeof(reuse_adr_en));
     
     struct sockaddr_in bc_adr_sendto, bc_adr_recvfrom;
 
@@ -180,10 +181,6 @@ int main(int argc, char *argv[])
                 error("ERROR select\n");
             }
         }   
-        
-
-        //if ((select(udp_sockfd + 1, &current_sockets, NULL, NULL, NULL) < 0) && (turn_cnt > USERS_FOR_PROJECT)) //max_fd is udp_sockfd
-         //   error("ERROR on select");
 
         
         if (FD_ISSET(STDIN, &current_sockets)) 
