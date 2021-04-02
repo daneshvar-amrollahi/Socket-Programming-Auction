@@ -26,4 +26,4 @@ Here is a sample test:
 
 Please contact me if you need help on how to test/run this. 
 
-I would like to also thank Antonin GAVREL who helped me fix the UDP part. 
+I would like to also thank Antonin GAVREL and Mahyar who helped me fix the UDP part. 
