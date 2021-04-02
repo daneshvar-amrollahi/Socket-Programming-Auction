@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 
 
     signal(SIGALRM, sig_handler); //Register signal handler
-    printf("Auction beginning...\n");
+    printf("Auction has begun! Go Go Go!!!!!!!..\n");
     alarm(10);
     int mn = 2e9, ans;
     int my_offered_price = 0;
