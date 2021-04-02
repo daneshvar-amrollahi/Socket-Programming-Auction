@@ -22,3 +22,5 @@ How to connect a client:
 Please contact me if you need help on how to test/run this. 
 
 I would like to also thank Antonin GAVREL who helped me fix the UDP part. 
+
+![How 2 Run](how2run.png)
