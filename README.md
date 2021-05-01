@@ -1,4 +1,4 @@
-This is the first computer assignment of my Operating Systems course in the Fall semester 2020 at University of Tehran.
+This is the first computer assignment of my Operating Systems course in the Spring semester 2021 at University of Tehran.
 
 This project is a client-server model implementation of an aucton using Socket Programming in C.
 The server is offering projects numbered 0-9. When a client connects to the server, the server shows a list of the available projects to that client (using a TCP socket) so the client can volunteer for a project by entering the command
